@@ -378,7 +378,7 @@ _ENGLISH_EXAM_HINT_RE = re.compile(
 @register(
     "astrbot_plugin_mathsolve",
     "blueraina",
-    "Markdown转图片 + 数学图文解答 + /pdf LaTeX解答 + /spdf DeepThink多角色迭代 + 知识库检索 + 对话记忆",
+    "Markdown转图片 + 数学图文解答 + /答疑 LaTeX解答 + /spdf DeepThink多角色迭代 + 知识库检索 + 对话记忆",
     "1.14.0",
 )
 class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin, RenderMixin, LectureMixin, LectureLinkMixin, LectureExportMixin, Star):
@@ -1044,7 +1044,7 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
 
         def _looks_like_pdf_string(x: str) -> bool:
             xl = (x or "").lower()
-            return (".pdf" in xl) or ("application/pdf" in xl)
+            return (".pdf" in xl) or ("application/答疑" in xl)
 
         # 尝试在对象图里找 ".pdf" / File 组件 / file name
         try:
@@ -1397,7 +1397,7 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
             yield event.plain_result(msg)
 
     # === 快捷指令 3: 生成 PDF 解答 ===
-    @filter.command("pdf")
+    @filter.command("答疑")
     async def cmd_pdf(self, event: AstrMessageEvent):
         if not self._cfg("enable_pdf_output", True):
             yield event.plain_result("PDF 输出未启用")
@@ -1494,14 +1494,14 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
         elif last_images:
             # 只发 /pdf：回溯上一张图
             if not is_last_img_likely_valid:
-                yield event.plain_result("⚠️ 上一张图片可能已过期（链接可能失效），建议重新发送图片 + /pdf")
+                yield event.plain_result("⚠️ 上一张图片可能已过期（链接可能失效），建议重新发送图片 + /答疑")
                 # 仍允许用户“试一试”：很多平台 URL 实际更久
             final_image_inputs = last_images
             final_text_input = last_problem_text if last_problem_text != "[图片题目]" else ""
         elif last_problem_text and last_problem_text != "[图片题目]":
             final_text_input = last_problem_text
         else:
-            yield event.plain_result("请发送 /pdf 题目文字，或发送包含题目的图片 + /pdf")
+            yield event.plain_result("请发送 /答疑 题目文字，或发送包含题目的图片 + /答疑")
             return
 
         # === 随机等待提示语 Start ===

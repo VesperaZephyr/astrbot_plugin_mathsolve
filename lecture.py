@@ -29,7 +29,7 @@ _MATH_SIGNAL_RE = re.compile(
     r"|设\s*[A-Za-z]\s*[为是]"
 )
 _NOISE_RE = re.compile(r"^(?:哈+|h+|草|[6牛]+|笑死|好+|对+|是的|ok|嗯+|收到|谢谢)[!！。.~\s]*\$", re.I)
-_CMD_RE = re.compile(r"^[/!！]?\s*(?:pdf|spdf|pc|pe|memclear|答疑报告生成|讲义)", re.I)
+_CMD_RE = re.compile(r"^[/!！]?\s*(?:答疑|pdf|spdf|pc|pe|memclear|答疑报告生成|讲义)", re.I)
 
 SCORE_PROMPT = """你是数学题库的审题员。判断下面这条群消息是不是一道可独立成题的数学题，并打分。
 
@@ -576,7 +576,7 @@ SOLUTION_PROMPT = r"""你是数学讲义的解答撰写者。为下面这道题�
   "solution": "完整解答（LaTeX，自然、不跳步、但不啰嗦；重要推导给出理由）"
 }
 
-要求：与 /pdf 的解答标准一致——不跳步，但也不要复述教科书；公式用 $...$ 或 \[...\]。
+要求：与 /答疑 的解答标准一致——不跳步，但也不要复述教科书；公式用 $...$ 或 \[...\]。
 
 题目：
 """
