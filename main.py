@@ -364,6 +364,15 @@ class Md2ImgSolveMathSpdfTool(FunctionTool[AstrAgentContext]):
 
 # 插件定义
 # -------------------------------------------------------------------------
+# 英语考试意图识别（用于与 astrbot_plugin_cet6 英语答疑插件互斥）
+# 若用户文本已明确指向英语/四六级/考研英语，则不应仅凭"带图"就把消息判成数学题。
+_ENGLISH_EXAM_HINT_RE = re.compile(
+    r"(六级|四六级|cet[- ]?[46]|考研英语|英语一|英语二|英语作文|英语翻译|英语真题"
+    r"|汉译英|英译汉|专四|专八|长难句)",
+    re.IGNORECASE,
+)
+
+
 @register(
     "astrbot_plugin_mathsolve",
     "blueraina",
@@ -390,6 +399,8 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
         self._pw_lock = asyncio.Lock()
         self._playwright_install_lock = asyncio.Lock()
         self._playwright_install_task: Optional[asyncio.Task] = None
+        # 上一次触发「自动重装 Chromium」的单调时刻，用于限流（见 _schedule_playwright_chromium_install）
+        self._last_playwright_install_ts: float = 0.0
         self._render_sema = asyncio.Semaphore(int(self._cfg("render_concurrency", 2) or 2))
         # xelatex 编译并发限制（避免同时跑太多编译占满 CPU/IO）
         self._tex_compile_sema = asyncio.Semaphore(int(self._cfg("tex_compile_concurrency", 2) or 2))
@@ -478,9 +489,24 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
     def _schedule_playwright_chromium_install(self, reason: str = "") -> None:
         if not bool(self._cfg("auto_install_playwright_chromium", True)):
             return
+        # 限流：`playwright install chromium` 会下载数百 MB 并整体替换浏览器目录。
+        # 若因「系统库缺失 / overlayfs 瞬时 ENOENT」这类与安装无关的原因连续
+        # 触发，就会形成「重装替换目录 -> 并发 launch 继续失败 -> 再次重装」
+        # 的资源黑洞。这里加冷却窗口，把同一原因的重复触发压成一次。
+        import time as _time
+        now = _time.monotonic()
+        cooldown = float(self._cfg("playwright_install_cooldown_sec", 300) or 300)
+        last = float(getattr(self, "_last_playwright_install_ts", 0.0) or 0.0)
+        if last and (now - last) < cooldown:
+            logger.info(
+                f"Playwright 安装任务处于冷却期（还需 {int(cooldown - (now - last))}s），"
+                f"跳过本次触发 reason={reason}"
+            )
+            return
         try:
             if self._playwright_install_task is not None and not self._playwright_install_task.done():
                 return
+            self._last_playwright_install_ts = now
             self._playwright_install_task = asyncio.create_task(
                 self._install_playwright_chromium_background(reason)
             )
@@ -527,15 +553,35 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
         async with self._pw_lock:
             if self._browser is not None:
                 return
-            try:
-                self._pw = await async_playwright().start()
-                self._browser = await self._pw.chromium.launch()
-                logger.info("Playwright Chromium 已启动（复用模式）")
-            except Exception as e:
-                logger.error(f"Playwright 启动失败，将回退为每次渲染临时启动: {e}")
-                self._schedule_playwright_chromium_install("launch_failed")
-                self._pw = None
-                self._browser = None
+            # 冷启动/重装窗口内的启动失败通常是「瞬时」的：后台 `playwright install`
+            # 正在替换浏览器目录，或 Docker overlayfs 首次读取大体积 .so 偶发 ENOENT
+            # （线上实测出现过 "libnspr4.so: cannot open shared object file"，
+            # 但稍后 ldd 检查所有依赖均齐全）。
+            # 因此重试在前、重装在后：先把瞬时失败消化掉，避免误判为「未安装」
+            # 而触发几百 MB 的无效下载，进而加剧目录替换与并发失败。
+            last_err = None
+            for attempt in range(2):
+                try:
+                    self._pw = await async_playwright().start()
+                    self._browser = await self._pw.chromium.launch()
+                    logger.info("Playwright Chromium 已启动（复用模式）")
+                    return
+                except Exception as e:
+                    last_err = e
+                    try:
+                        if self._pw is not None:
+                            await self._pw.stop()
+                    except Exception:
+                        pass
+                    self._pw = None
+                    self._browser = None
+                    if attempt == 0:
+                        logger.warning(f"Playwright 首次启动失败，1.5s 后重试一次: {e}")
+                        await asyncio.sleep(1.5)
+            logger.error(f"Playwright 启动失败，将回退为每次渲染临时启动: {last_err}")
+            self._schedule_playwright_chromium_install("launch_failed")
+            self._pw = None
+            self._browser = None
 
     async def _close_browser(self):
         async with self._pw_lock:
@@ -2096,7 +2142,12 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
         if kb_query:
             # 让知识库检索问法也走“数学答疑”管线（输出 <md> 图片）
             is_math = True
-        if bool(current_images) and treat_img_as_math:
+        # 【插件互斥修复】英语考试意图优先：文本明确是英语/四六级/考研英语问题时，
+        # 不把"仅带图"判成数学题，避免与英语答疑插件注入的名师提示词互相打架。
+        _english_exam_intent = bool(_ENGLISH_EXAM_HINT_RE.search(user_text)) or bool(
+            event.get_extra("english_exam_flow")
+        )
+        if bool(current_images) and treat_img_as_math and not _english_exam_intent:
             is_math = True
 
         if is_math and explicit_hint and not wants_full:

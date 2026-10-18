@@ -917,9 +917,9 @@ def _normalize_stream_msgs(lines: List[str]) -> List[str]:
 # Markdown -> 图片：LaTeX 保护（不破坏公式）
 # -------------------------------------------------------------------------
 _MATH_TOKEN_RE = re.compile(
-    r"(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<!\\)\$[^\n]*?(?<!\\)\$"
+    r"(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<!\\)\$[^\n]*?(?<!\\)\$|"
+    r"\\\[[\s\S]*?\\\]|\\\([^\n]*?\\\)"
 )
-
 
 def _quote_markdown_block(text: str, title: str = "", marker: str = "") -> str:
     """把一段 Markdown 包成引用块，用于渲染成讲义卡片。"""

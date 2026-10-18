@@ -1,3 +1,4 @@
+from ._latex_cjk import ensure_chinese_support
 # -*- coding: utf-8 -*-
 try:
     from .shared import *
@@ -1320,7 +1321,19 @@ class PdfMixin:
             return compile_ok
 
         # 若未配置守门模型，退化为“是否编译成功”
-        provider = (preferred_provider_id or fallback_provider_id or "").strip()
+        # Success needs no model judgment. Resolve only existing providers so
+        # renamed/deleted configured IDs cannot generate repeated failures.
+        if compile_ok:
+            return True
+        providers = {p.meta().id: p for p in self.context.get_all_providers() or ()}
+        provider = next((pid.strip() for pid in (preferred_provider_id, fallback_provider_id)
+                         if pid and pid.strip() in providers), "")
+        if not provider:
+            try:
+                current = await self.context.get_using_provider_async()
+            except Exception:
+                current = None
+            provider = current.meta().id if current else next(iter(providers), "")
         if not provider:
             return compile_ok
 
@@ -1499,6 +1512,7 @@ class PdfMixin:
             pass
 
     async def _compile_local_xelatex(self, tex_src: str) -> Optional[bytes]:
+        tex_src = ensure_chinese_support(tex_src)
         timeout_sec = int(self._cfg("local_xelatex_timeout_sec", 60) or 60)
 
         # 重要：xelatex 编译是阻塞操作。若直接 subprocess.run 会卡住整个事件循环，

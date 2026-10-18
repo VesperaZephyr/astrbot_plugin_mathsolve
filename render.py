@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from ._cooperation import heavy_job
+
 try:
     from .shared import *
 except ImportError:
@@ -80,6 +82,7 @@ class RenderMixin:
 
         return components
 
+    @heavy_job
     async def _markdown_to_image_playwright(
             self,
             md_text: str,
@@ -405,7 +408,7 @@ class RenderMixin:
             <script type="text/x-mathjax-config">
                 MathJax.Hub.Config({{
                     skipStartupTypeset: true,
-                    tex2jax: {{ inlineMath: [['$','$']], displayMath: [['$$','$$']], processEscapes: true }},
+                    tex2jax: {{ inlineMath: [['$','$'], ['\\(','\\)']], displayMath: [['$$','$$'], ['\\[','\\]']], processEscapes: true }},
                     "HTML-CSS": {{ scale: 90, linebreaks: {{ automatic: true, width: "container" }} }},
                     SVG: {{ linebreaks: {{ automatic: true, width: "container" }} }}
                 }});
