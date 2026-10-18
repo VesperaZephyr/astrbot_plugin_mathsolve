@@ -751,12 +751,53 @@ class LectureExportMixin:
         tail = [r"\end{document}", ""]
         return "\n".join(head + body + tail)
 
-    async def _lec_compile(self, tex: str) -> Optional[bytes]:
+    def _lec_preflight(self, tex: str) -> Optional[str]:
+        """发送前自检：模板/产物占位符残留、模板完整性。返回错误说明或 None。"""
+        for marker in ("§", "@@"):
+            if marker in tex:
+                return "生成的 TeX 残留占位符 " + marker
         tpl = self._lec_template_dir()
-        missing = [f for f in LECTURE_TPL_FILES if not os.path.exists(os.path.join(tpl, f))]
-        if missing:
-            logger.warning(f"[讲义] 模板文件缺失: {missing}")
+        for f in LECTURE_TPL_FILES:
+            path = os.path.join(tpl, f)
+            if not os.path.exists(path):
+                return "模板文件缺失：" + f
+            if f.endswith((".sty", ".cls")):
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    body = fh.read()
+                # 注意：LaTeX 源码合法使用 \@@ 宏，模板里只能查 § 占位符
+                if "§" in body:
+                    return "模板 " + f + " 残留占位符 §"
+        if r"\begin{document}" not in tex or r"\end{document}" not in tex:
+            return "TeX 结构不完整（缺少 document 环境）"
+        return None
+
+    def _lec_postcheck(self, pdf_bytes: bytes) -> Optional[str]:
+        """产物自检：前两页不得出现 LaTeX 源码痕迹。"""
+        try:
+            import io
+            import pypdfium2 as pdfium
+        except Exception:
             return None
+        try:
+            doc = pdfium.PdfDocument(io.BytesIO(pdf_bytes))
+            for i in range(min(len(doc), 40)):
+                text = doc[i].get_textpage().get_text_range()
+                for marker in ("newtcolorbox", "newenvironment", "newcommand",
+                               "\\documentclass", "§", "@@"):
+                    if marker in text:
+                        return "PDF 第 %d 页出现源码痕迹：%s" % (i + 1, marker)
+        except Exception as exc:
+            logger.warning(f"[讲义] 产物自检异常（已忽略）: {exc}")
+        return None
+
+    async def _lec_compile(self, tex: str) -> Optional[bytes]:
+        self._lec_last_error = ""
+        bad = self._lec_preflight(tex)
+        if bad:
+            self._lec_last_error = bad
+            logger.warning(f"[讲义] 预检未通过: {bad}")
+            return None
+        tpl = self._lec_template_dir()
 
         def _run() -> Optional[bytes]:
             import shutil
@@ -781,6 +822,13 @@ class LectureExportMixin:
                                 tail = fh.read()[-1200:]
                         logger.warning("[讲义] xelatex 编译失败: " + tail.replace("\n", " | "))
                         return None
+                    log_path = os.path.join(td, "lecture.log")
+                    if os.path.exists(log_path):
+                        with open(log_path, encoding="utf-8", errors="replace") as fh:
+                            tail = fh.read()[-1200:]
+                        if "Missing character" in tail:
+                            n_missing = tail.count("Missing character")
+                            logger.warning(f"[讲义] 编译告警：{n_missing} 处缺字形（见上方日志）")
                     with open(pdf_path, "rb") as fh:
                         return fh.read()
                 except Exception as exc:
@@ -788,7 +836,16 @@ class LectureExportMixin:
                     return None
 
         async with self._tex_compile_sema:
-            return await asyncio.to_thread(_run)
+            pdf = await asyncio.to_thread(_run)
+        if not pdf:
+            self._lec_last_error = self._lec_last_error or "xelatex 编译失败（详见日志）"
+            return None
+        bad = self._lec_postcheck(pdf)
+        if bad:
+            self._lec_last_error = bad
+            logger.warning(f"[讲义] 产物自检未通过: {bad}")
+            return None
+        return pdf
 
     async def _lec_write_solution(self, row, event) -> bool:
         prompt = SOLUTION_PROMPT + (row["stem_tex"] or "")
@@ -851,7 +908,7 @@ class LectureExportMixin:
         yield event.plain_result(f"正在编译讲义（{len(rows)} 题），请稍候……")
         pdf = await self._lec_compile(tex)
         if not pdf:
-            yield event.plain_result("编译失败，已记录日志；未发送任何文件。")
+            yield event.plain_result("编译失败，未发送任何文件：" + (getattr(self, "_lec_last_error", "") or "详见日志"))
             return
         fname = "数学习题讲义_%s.pdf" % time.strftime("%Y%m%d_%H%M")
         out_path = os.path.join(self.PDF_CACHE_DIR, "lecture_" + time.strftime("%Y%m%d_%H%M%S") + ".pdf")
