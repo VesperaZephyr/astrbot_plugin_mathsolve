@@ -1,0 +1,62 @@
+% ===================================================================
+% lecture.sty — 习题讲义扩展（题目环境 / 元信息 / 难度星级 / 稳定题号 / 索引）
+% 依赖 exercisebook.cls（ctexbook + tcolorbox + amsthm 等）
+% ===================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{lecture}[2026/10/18 Lecture-problem extensions]
+
+% lecture-chinese-today: 中文日期（不依赖额外宏包）
+\renewcommand{\today}{\number\year 年 \number\month 月 \number\day 日}
+
+\RequirePackage{etoolbox}
+
+% ---------- 难度星级：\difficulty{1..5} ----------
+\newcommand{\lecture@f}{\ensuremath{\bigstar}}
+\newcommand{\lecture@e}{\ensuremath{\star}}
+\newcommand{\difficulty}[1]{%
+  \ifcase#1\relax
+    \or \lecture@f\lecture@e\lecture@e\lecture@e\lecture@e
+    \or \lecture@f\lecture@f\lecture@e\lecture@e\lecture@e
+    \or \lecture@f\lecture@f\lecture@f\lecture@e\lecture@e
+    \or \lecture@f\lecture@f\lecture@f\lecture@f\lecture@e
+    \or \lecture@f\lecture@f\lecture@f\lecture@f\lecture@f
+    \else \lecture@f\lecture@f\lecture@f\lecture@f\lecture@f
+  \fi}
+
+% ---------- 题目元信息：\qmeta{来源}{难度1-5}{考点} ----------
+\newcommand{\qmeta}[3]{%
+  \par\noindent{\footnotesize\color{gray}%
+    来源：#1\quad 难度：\difficulty{#2}\quad 考点：#3\par}%
+  \vspace{2pt}}
+
+% ---------- 稳定题号：\qid{Q-000123} ----------
+\newcommand{\qid}[1]{\par\noindent{\scriptsize\color{gray}\texttt{#1}}\par\vspace{2pt}}
+
+% ---------- 题目环境 ----------
+\newtcolorbox[auto counter, number within=chapter]{problem}[1][]{%
+  enhanced, breakable, frame hidden,
+  colback=blue!4!white,
+  borderline west={3pt}{0pt}{blue!55!black},
+  top=5pt, bottom=5pt, left=8pt, right=8pt,
+  before skip=10pt, after skip=8pt,
+  before upper={%
+    \par\noindent{\bfseries\heiti 题\thetcbcounter
+    \ifblank{#1}{}{（#1）}}\par\smallskip
+  }%
+}
+
+% ---------- 专题小节（可选） ----------
+\newcommand{\topic}[1]{\par\medskip\noindent{\large\bfseries\heiti #1}\par\smallskip}
+
+
+% ---------- 想法与知识点（独立环境，放在 solution 之前） ----------
+\newtcolorbox{ideabox}{
+  enhanced, breakable, frame hidden,
+  colback=gray!6!white,
+  borderline west={2pt}{0pt}{gray!55},
+  top=3pt, bottom=3pt, left=8pt, right=8pt,
+  before skip=6pt, after skip=4pt,
+  before upper={\par\noindent{\bfseries\heiti 想法与知识点}\par\smallskip},
+}
+\newenvironment{idea}{\begin{ideabox}}{\end{ideabox}}
+\endinput

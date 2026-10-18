@@ -1080,4 +1080,21 @@
       }
     }
   }
+,
+  "lecture": {
+    "type": "object",
+    "description": "习题讲义系统",
+    "hint": "群内自动采集数学题、五维评分、候选审核；白名单群与阈值在此配置。",
+    "items": {
+      "lecture_enable": {"type": "bool", "description": "启用讲义采集", "default": false, "obvious_hint": true},
+      "lecture_group_whitelist": {"type": "list", "description": "白名单群号", "default": ["529535624"]},
+      "lecture_score_threshold": {"type": "float", "description": "质量分阈值（0-10）", "default": 6.5},
+      "lecture_daily_score_cap": {"type": "int", "description": "每群每日评分调用上限", "default": 30},
+      "lecture_export_limit": {"type": "int", "description": "单次导出题目上限", "default": 50},
+      "lecture_retrieval_enable": {"type": "bool", "description": "在 /pdf 后检索讲义并另发消息", "default": true},
+      "lecture_retrieval_topk": {"type": "int", "description": "检索联动返回题目数", "default": 4},
+      "lecture_vision_provider_id": {"type": "string", "description": "图片题转写模型 ID（留空跟随默认图片模型）", "default": ""},
+      "lecture_solution_provider": {"type": "string", "description": "评分/解答模型 ID（留空跟随 /pdf 模型链）", "default": ""}
+    }
+  }
 }

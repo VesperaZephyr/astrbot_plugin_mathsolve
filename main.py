@@ -13,6 +13,7 @@ try:
     from .pdf import PdfMixin
     from .render import RenderMixin
     from .daily_report import DailyReportMixin
+    from .lecture import LectureExportMixin, LectureLinkMixin, LectureMixin
 except ImportError:
     from shared import *
     from memory import MemoryMixin
@@ -20,6 +21,7 @@ except ImportError:
     from pdf import PdfMixin
     from render import RenderMixin
     from daily_report import DailyReportMixin
+    from lecture import LectureExportMixin, LectureLinkMixin, LectureMixin
 
 
 # =============================================================================
@@ -377,9 +379,9 @@ _ENGLISH_EXAM_HINT_RE = re.compile(
     "astrbot_plugin_mathsolve",
     "blueraina",
     "Markdown转图片 + 数学图文解答 + /pdf LaTeX解答 + /spdf DeepThink多角色迭代 + 知识库检索 + 对话记忆",
-    "1.13.4",
+    "1.14.0",
 )
-class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin, RenderMixin, Star):
+class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin, RenderMixin, LectureMixin, LectureLinkMixin, LectureExportMixin, Star):
     def __init__(self, context: Context, config: Optional[Dict[str, Any]] = None):
         super().__init__(context)
         self.config: Dict[str, Any] = dict(config) if isinstance(config, dict) else {}
@@ -476,7 +478,7 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
             self._start_cache_cleaner()
             self._start_daily_report_scheduler()
 
-            logger.info("AstrBot mathsolve 插件已就绪 (1.13.4 - 本地编译版)")
+            logger.info("AstrBot mathsolve 插件已就绪 (1.14.0 - 本地编译版)")
         except Exception as e:
             logger.error(f"初始化失败: {e}")
 
@@ -676,6 +678,9 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
                     event.stop_event()
                 except Exception:
                     pass
+
+            # 讲义采集：独立于 /pdf，异步任务，不阻塞消息管线
+            self._lec_schedule_collect(event, raw, imgs)
         except Exception:
             pass
         finally:
@@ -1651,6 +1656,53 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
             pdf_path=pdf_path,
             image_urls=final_image_inputs,
         )
+
+        # 讲义检索联动：另发一条消息（只读题库，绝不写入）
+        try:
+            self._lec_schedule_pdf_link(event, final_text_input or "", final_image_inputs)
+        except Exception:
+            pass
+
+    # === 讲义指令（在类体内直接注册，与 /pdf 等既有指令同一模式） ===
+    @filter.command("讲义候选")
+    async def cmd_lecture_candidates(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_candidates(event):
+            yield _lec_result
+
+    @filter.command("讲义确认")
+    async def cmd_lecture_approve(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_approve(event):
+            yield _lec_result
+
+    @filter.command("讲义删除")
+    async def cmd_lecture_delete(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_delete(event):
+            yield _lec_result
+
+    @filter.command("讲义状态")
+    async def cmd_lecture_stats(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_stats(event):
+            yield _lec_result
+
+    @filter.command("讲义新增")
+    async def cmd_lecture_add(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_add(event):
+            yield _lec_result
+
+    @filter.command("讲义改类")
+    async def cmd_lecture_set_subject(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_set_subject(event):
+            yield _lec_result
+
+    @filter.command("讲义改分")
+    async def cmd_lecture_set_score(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_set_score(event):
+            yield _lec_result
+
+    @filter.command("讲义导出")
+    async def cmd_lecture_export(self, event: AstrMessageEvent):
+        async for _lec_result in self._lec_cmd_export(event):
+            yield _lec_result
 
     # === 快捷指令 4: DeepThink 多角色迭代生成 PDF 解答（/spdf） ===
     @filter.command("spdf")
