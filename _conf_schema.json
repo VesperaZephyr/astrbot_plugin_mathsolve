@@ -1097,4 +1097,14 @@
       "lecture_solution_provider": {"type": "string", "description": "评分/解答模型 ID（留空跟随 /pdf 模型链）", "default": ""}
     }
   }
+,
+  "qa_theme": {
+    "type": "object",
+    "description": "答疑模板与配色",
+    "hint": "控制 /答疑 与 /spdf 生成的 PDF 版式与主色；留空/默认即保持原样。",
+    "items": {
+      "qa_template": {"type": "string", "description": "答疑模板", "default": "article", "options": ["article", "exercisebook", "exam"], "hint": "article=简洁版；exercisebook=讲义风（左侧色条题框+解答框）；exam=试卷风（描边题框+较大留白）"},
+      "qa_color": {"type": "string", "description": "主色", "default": "blue", "options": ["blue", "green", "amber", "mono"], "hint": "blue 蓝 / green 墨绿 / amber 暖橙 / mono 黑白"}
+    }
+  }
 }

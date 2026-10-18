@@ -29,6 +29,11 @@ from astrbot.core.message.components import Image, Plain
 from astrbot.core.provider.entities import LLMResponse, ProviderRequest
 from astrbot.core.star.star_tools import StarTools
 
+try:
+    from . import qa_theme
+except ImportError:
+    import qa_theme
+
 # --- LLM Tools / Agent Tool 支持（用于 Agent 调用插件能力） ---
 try:
     # v4.5.7+ 推荐：统一从 astrbot.api.all 导入
@@ -2030,10 +2035,7 @@ def _build_pdf_latex_document(problem_tex: str, theorems_tex: str, solution_tex:
         r"\linespread{1.3}",
         r"\tcbset{enhanced, boxrule=0.8pt, arc=2.5mm}",
 
-        r"\newtcolorbox{problemBox}[1][]{colback=blue!3!white, colframe=blue!65!black, title=题目, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{theoremBox}[2][]{colback=teal!3!white, colframe=teal!65!black, title=定理：#2, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{lemmaBox}[2][]{colback=orange!5!white, colframe=orange!80!black, title=引理：#2, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{formulaBox}[2][]{colback=violet!3!white, colframe=violet!65!black, title=公式：#2, fonttitle=\bfseries, #1}",
+        *qa_theme.tex_box_defs(qa_theme.current()["template"], qa_theme.current()["color"]).split(chr(10)),
 
         r"\begin{document}",
         r"\section*{解题所需结论}",
@@ -2078,10 +2080,7 @@ def _build_pdf_latex_document_multi(items: List[Tuple[str, str, str]]) -> str:
         r"\setlength{\parindent}{0pt}",
         r"\linespread{1.3}",
         r"\tcbset{enhanced, boxrule=0.8pt, arc=2.5mm}",
-        r"\newtcolorbox{problemBox}[1][]{colback=blue!3!white, colframe=blue!65!black, title=题目, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{theoremBox}[2][]{colback=teal!3!white, colframe=teal!65!black, title=定理：#2, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{lemmaBox}[2][]{colback=orange!5!white, colframe=orange!80!black, title=引理：#2, fonttitle=\bfseries, #1}",
-        r"\newtcolorbox{formulaBox}[2][]{colback=violet!3!white, colframe=violet!65!black, title=公式：#2, fonttitle=\bfseries, #1}",
+        *qa_theme.tex_box_defs(qa_theme.current()["template"], qa_theme.current()["color"]).split(chr(10)),
         r"\begin{document}",
     ]
 

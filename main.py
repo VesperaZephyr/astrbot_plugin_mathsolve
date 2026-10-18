@@ -14,6 +14,7 @@ try:
     from .render import RenderMixin
     from .daily_report import DailyReportMixin
     from .lecture import LectureExportMixin, LectureLinkMixin, LectureMixin
+    from . import qa_theme
 except ImportError:
     from shared import *
     from memory import MemoryMixin
@@ -22,6 +23,7 @@ except ImportError:
     from render import RenderMixin
     from daily_report import DailyReportMixin
     from lecture import LectureExportMixin, LectureLinkMixin, LectureMixin
+    import qa_theme
 
 
 # =============================================================================
@@ -465,6 +467,10 @@ class MarkdownConverterPlugin(DailyReportMixin, MemoryMixin, SpdfMixin, PdfMixin
             os.makedirs(self.PDF_CACHE_DIR, exist_ok=True)
             os.makedirs(self.TEXLIVE_CACHE_DIR, exist_ok=True)
             self._daily_report_init_storage()
+            try:
+                qa_theme.bind(lambda key, default: self._cfg(key, default))
+            except Exception as _e:
+                logger.warning(f"[md2img] 主题绑定失败（不影响其它功能）: {_e}")
 
             if bool(self._cfg("auto_install_playwright_chromium", True)):
                 self._schedule_playwright_chromium_install("startup")
