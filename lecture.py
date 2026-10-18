@@ -14,6 +14,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, MessageChain, filter
 
+try:
+    from . import qa_theme
+except ImportError:
+    import qa_theme
+
 LECTURE_SCHEMA_VERSION = 1
 
 LECTURE_SUBJECTS = (
@@ -691,6 +696,7 @@ class LectureExportMixin:
         date_str = time.strftime("%Y 年 %m 月 %d 日")
         head = [
             r"\documentclass{exercisebook}",
+            qa_theme.tex_color_defs(qa_theme.current()["lecture_color"]),
             r"\usepackage{lecture}",
             r"\title{" + title + "}",
             r"\author{全体群友}",

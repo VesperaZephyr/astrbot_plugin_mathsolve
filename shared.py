@@ -2002,6 +2002,53 @@ def _pdf_raw_to_latex_parts(raw: str, problem_text: str, has_image: bool) -> Dic
     }
 
 
+
+def _qa_body(problem_tex: str, theorems_tex: str, solution_tex: str) -> List[str]:
+    """按当前模板组装正文（article 与旧版输出一致）。"""
+    theme = qa_theme.current()
+    template = theme.get("template", "article")
+    if template == "exercisebook":
+        return [
+            r"\section*{解题所需结论}",
+            theorems_tex,
+            "",
+            r"\section*{题目与解答}",
+            r"\begin{problemBox}",
+            problem_tex,
+            r"\end{problemBox}",
+            "",
+            r"\begin{solutionBox}",
+            solution_tex,
+            r"\end{solutionBox}",
+        ]
+    if template == "exam":
+        return [
+            r"\section*{题目}",
+            r"\begin{problemBox}",
+            problem_tex,
+            r"\end{problemBox}",
+            r"\vfill",
+            r"\newpage",
+            r"\section*{解答}",
+            r"\subsection*{解题所需结论}",
+            theorems_tex,
+            "",
+            r"\begin{solutionBox}",
+            solution_tex,
+            r"\end{solutionBox}",
+        ]
+    return [
+        r"\section*{解题所需结论}",
+        theorems_tex,
+        "",
+        r"\section*{解答}",
+        r"\begin{problemBox}",
+        problem_tex,
+        r"\end{problemBox}",
+        "",
+        solution_tex,
+    ]
+
 def _build_pdf_latex_document(problem_tex: str, theorems_tex: str, solution_tex: str) -> str:
     """组装可 xelatex 编译的完整 LaTeX 文档（ctex + tcolorbox）。
 
@@ -2038,15 +2085,7 @@ def _build_pdf_latex_document(problem_tex: str, theorems_tex: str, solution_tex:
         *qa_theme.tex_box_defs(qa_theme.current()["template"], qa_theme.current()["color"]).split(chr(10)),
 
         r"\begin{document}",
-        r"\section*{解题所需结论}",
-        theorems_tex,
-        "",
-        r"\section*{解答}",
-        r"\begin{problemBox}",
-        problem_tex,
-        r"\end{problemBox}",
-        "",
-        solution_tex,
+        *_qa_body(problem_tex, theorems_tex, solution_tex),
         r"\end{document}",
         "",
     ]

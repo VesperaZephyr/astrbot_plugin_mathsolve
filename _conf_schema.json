@@ -1104,7 +1104,9 @@
     "hint": "控制 /答疑 与 /spdf 生成的 PDF 版式与主色；留空/默认即保持原样。",
     "items": {
       "qa_template": {"type": "string", "description": "答疑模板", "default": "article", "options": ["article", "exercisebook", "exam"], "hint": "article=简洁版；exercisebook=讲义风（左侧色条题框+解答框）；exam=试卷风（描边题框+较大留白）"},
-      "qa_color": {"type": "string", "description": "主色", "default": "blue", "options": ["blue", "green", "amber", "mono"], "hint": "blue 蓝 / green 墨绿 / amber 暖橙 / mono 黑白"}
+      "qa_color": {"type": "string", "description": "主色", "default": "blue", "options": ["blue", "green", "amber", "mono"], "hint": "blue 蓝 / green 墨绿 / amber 暖橙 / mono 黑白"},
+      "card_color": {"type": "string", "description": "图片卡片配色", "default": "follow", "options": ["follow", "blue", "green", "amber"], "hint": "follow=保持现有米白棕色风格；其它值覆盖卡片主色"},
+      "lecture_color": {"type": "string", "description": "讲义配色", "default": "follow", "options": ["follow", "blue", "green", "amber"], "hint": "follow=跟随主色；决定讲义题目框与侧边条颜色"}
     }
   }
 }

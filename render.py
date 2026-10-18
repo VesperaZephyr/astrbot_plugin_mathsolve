@@ -2,6 +2,11 @@
 from ._cooperation import heavy_job
 
 try:
+    from . import qa_theme
+except ImportError:
+    import qa_theme
+
+try:
     from .shared import *
 except ImportError:
     from shared import *
@@ -136,6 +141,20 @@ class RenderMixin:
             '"PingFang SC", "SimHei", sans-serif'
         )
 
+        # --- 主题配色：仅当用户显式选择配色时覆盖，follow 保持原视觉 ---
+        _qa_override = ""
+        try:
+            _qa_card = str(self._cfg("card_color", "follow") or "follow").strip().lower()
+            if _qa_card not in ("", "follow"):
+                _qa_p = qa_theme.palette(_qa_card)
+                _qa_override = (
+                    "                --brown: #%s; --brown-deep: #%s;" % (_qa_p["deep"], _qa_p["deep"])
+                    + "                --gold: #%s; --gold-soft: #%s;" % (_qa_p["main"], _qa_p["soft"])
+                    + "                --blue: #%s; --blue-soft: #%s;" % (_qa_p["main"], _qa_p["soft"])
+                )
+        except Exception:
+            _qa_override = ""
+
         # --- 2. CSS 样式：数学讲义风（米白纸张 + 棕色标题 + 讲义卡片） ---
         base_css = f"""
             * {{ box-sizing: border-box; }}
@@ -153,6 +172,7 @@ class RenderMixin:
                 --blue: #4d82bb;
                 --blue-soft: #eef6ff;
                 --line: #e2c27a;
+{_qa_override}
             }}
             body {{
                 margin: 0; padding: 0;
